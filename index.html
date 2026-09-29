@@ -11,76 +11,141 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <main class="container">
-    <header class="hero">
-      <div>
-        <p class="eyebrow">SWARTZ PROGRESS PANEL</p>
-        <h1>Meu progresso é real.</h1>
-        <p class="subtitle">Um registro visual das coisas que eu aprendo, construo, termino e conquisto.</p>
-      </div>
-      <div class="hero-badge">
-        <span id="totalProgress">0</span>
-        <small>evidências de progresso</small>
-      </div>
-    </header>
-
-    <section class="cards" id="metricCards">
-      <article class="card">
-        <span class="label">🔥 Sequência atual</span>
-        <strong id="currentStreak">0 dias</strong>
-      </article>
-      <article class="card">
-        <span class="label">📚 Aprendizados</span>
-        <strong id="learningCount">0</strong>
-      </article>
-      <article class="card">
-        <span class="label">✅ Entregas</span>
-        <strong id="deliveryCount">0</strong>
-      </article>
-      <article class="card">
-        <span class="label">🏆 Conquistas</span>
-        <strong id="achievementCount">0</strong>
-      </article>
-      <article class="card">
-        <span class="label">🛠️ Projetos</span>
-        <strong id="projectCount">0</strong>
-      </article>
-    </section>
-
-    <section class="grid">
-      <article class="panel">
-        <div class="panel-header">
-          <div>
-            <span class="label">Evolução</span>
-            <h2>Progresso por mês</h2>
-          </div>
-        </div>
-        <canvas id="monthlyChart"></canvas>
-      </article>
-
-      <article class="panel">
-        <div class="panel-header">
-          <div>
-            <span class="label">Áreas</span>
-            <h2>Onde estou evoluindo</h2>
-          </div>
-        </div>
-        <canvas id="categoryChart"></canvas>
-      </article>
-    </section>
-
-    <section class="panel">
-      <div class="panel-header">
+  <div class="app-shell">
+    <aside class="sidebar glass">
+      <div class="brand">
+        <div class="brand-mark">SP</div>
         <div>
-          <span class="label">Registro recente</span>
-          <h2>O que eu fiz</h2>
+          <p class="overline">Swartz</p>
+          <h1>Progress Panel</h1>
         </div>
-        <span id="thisMonthCount" class="pill">0 este mês</span>
       </div>
-      <div id="timeline" class="timeline"></div>
-    </section>
-  </main>
 
+      <a class="primary-btn" id="registerBtn" href="#" target="_blank" rel="noopener noreferrer">+ Registrar progresso</a>
+
+      <nav class="sidebar-nav">
+        <a href="#overview" class="active">Dashboard</a>
+        <a href="#charts">Métricas</a>
+        <a href="#timelineSection">Registros</a>
+        <a href="#guideCard">Como usar</a>
+      </nav>
+
+      <div class="sidebar-card">
+        <p class="card-kicker">Foco da semana</p>
+        <strong id="weekFocusValue">0 registros</strong>
+        <span>evidências nos últimos 7 dias</span>
+      </div>
+
+      <div class="sidebar-card compact">
+        <p class="card-kicker">Lembrete</p>
+        <span>Seu progresso precisa ser <b>visível</b>, não perfeito.</span>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar glass" id="overview">
+        <div>
+          <p class="eyebrow">SEU PAINEL</p>
+          <h2>Veja o que você realmente está construindo.</h2>
+          <p class="subtitle">Aprendizados, entregas, projetos e conquistas em um lugar só.</p>
+        </div>
+        <div class="topbar-actions">
+          <button id="themeToggle" class="ghost-btn" type="button">🌙 Tema escuro</button>
+        </div>
+      </header>
+
+      <section class="stats-grid">
+        <article class="metric-card featured gradient-card">
+          <span class="metric-label">Evidências totais</span>
+          <strong id="totalProgress">0</strong>
+          <small id="lastUpdateText">Nenhum registro ainda.</small>
+        </article>
+
+        <article class="metric-card">
+          <span class="metric-label">🔥 Sequência atual</span>
+          <strong id="currentStreak">0 dias</strong>
+          <small>dias seguidos com registro</small>
+        </article>
+
+        <article class="metric-card">
+          <span class="metric-label">📚 Aprendizados</span>
+          <strong id="learningCount">0</strong>
+          <small>coisas que você aprendeu</small>
+        </article>
+
+        <article class="metric-card">
+          <span class="metric-label">✅ Entregas</span>
+          <strong id="deliveryCount">0</strong>
+          <small>tarefas e entregas concluídas</small>
+        </article>
+
+        <article class="metric-card">
+          <span class="metric-label">🏆 Conquistas</span>
+          <strong id="achievementCount">0</strong>
+          <small>aprovações e vitórias</small>
+        </article>
+
+        <article class="metric-card">
+          <span class="metric-label">🛠️ Projetos</span>
+          <strong id="projectCount">0</strong>
+          <small>projetos ou versões finalizadas</small>
+        </article>
+      </section>
+
+      <section class="content-grid" id="charts">
+        <article class="panel chart-panel glass">
+          <div class="panel-head">
+            <div>
+              <p class="panel-kicker">Evolução</p>
+              <h3>Progresso por mês</h3>
+            </div>
+            <span class="chip">visão mensal</span>
+          </div>
+          <canvas id="monthlyChart"></canvas>
+        </article>
+
+        <article class="panel glass">
+          <div class="panel-head">
+            <div>
+              <p class="panel-kicker">Categorias</p>
+              <h3>Onde você mais evoluiu</h3>
+            </div>
+          </div>
+          <canvas id="categoryChart"></canvas>
+        </article>
+      </section>
+
+      <section class="bottom-grid">
+        <article class="panel glass" id="timelineSection">
+          <div class="panel-head">
+            <div>
+              <p class="panel-kicker">Histórico</p>
+              <h3>Registros recentes</h3>
+            </div>
+            <span class="chip" id="thisMonthCount">0 este mês</span>
+          </div>
+          <div class="timeline" id="timeline"></div>
+        </article>
+
+        <article class="panel guide-card glass" id="guideCard">
+          <div class="panel-head">
+            <div>
+              <p class="panel-kicker">Fluxo de uso</p>
+              <h3>Como registrar</h3>
+            </div>
+          </div>
+          <ol class="steps">
+            <li>Clique em <b>Registrar progresso</b>.</li>
+            <li>Preencha <b>data, categoria, tipo e descrição</b>.</li>
+            <li>Envie o formulário no GitHub.</li>
+            <li>A automação atualiza o arquivo <code>progress.json</code>.</li>
+            <li>O painel publica de novo sozinho no GitHub Pages.</li>
+          </ol>
+          <a class="secondary-btn" id="openIssueBtn" href="#" target="_blank" rel="noopener noreferrer">Abrir formulário</a>
+        </article>
+      </section>
+    </main>
+  </div>
   <script src="script.js"></script>
 </body>
 </html>

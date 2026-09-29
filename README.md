@@ -1,50 +1,24 @@
 # Swartz Progress Panel
 
-Um painel pessoal para registrar evidências reais de progresso.
+Um painel visual para registrar aprendizados, entregas, projetos e conquistas.
 
-## Como registrar algo novo
+## Como usar
 
-Abra o arquivo:
+### Registrar um novo progresso
+- Abra o formulário em **Issues**.
+- Preencha data, categoria, tipo e descrição.
+- A automação atualiza `data/progress.json` e o GitHub Pages publica de novo.
 
-`data/progress.json`
+### Estrutura principal
+- `index.html` → layout do painel
+- `style.css` → visual e temas
+- `script.js` → métricas, gráficos e timeline
+- `data/progress.json` → base dos registros
+- `.github/ISSUE_TEMPLATE/progress.yml` → formulário
+- `.github/workflows/add-progress.yml` → automação
 
-E adicione um novo bloco seguindo este formato:
-
-```json
-{
-  "date": "2026-09-28",
-  "category": "Python",
-  "type": "Aprendizado",
-  "text": "Aprendi encapsulamento em Python."
-}
-```
-
-Tipos disponíveis:
+## Tipos disponíveis
 - `Aprendizado`
 - `Entrega`
-- `Conquista`
 - `Projeto`
-
-Depois é só fazer commit.
-
-O dashboard lê os registros automaticamente e atualiza:
-- total de evidências;
-- sequência de dias;
-- aprendizados;
-- entregas;
-- conquistas;
-- projetos;
-- evolução mensal;
-- áreas em que você mais evoluiu;
-- histórico recente.
-
-## Publicar no GitHub Pages
-
-1. Crie um repositório no GitHub.
-2. Envie estes arquivos para ele.
-3. Abra **Settings → Pages**.
-4. Em **Build and deployment**, escolha **Deploy from a branch**.
-5. Selecione a branch `main` e a pasta `/root`.
-6. Salve.
-
-O GitHub vai fornecer o link do seu painel.
+- `Conquista`
