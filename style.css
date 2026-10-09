@@ -140,13 +140,13 @@ button { font: inherit; }
 .stats-grid {
   display: grid;
   /* 1 card grande + 5 cards pequenos = 6 itens na mesma linha */
-  grid-template-columns: 2fr repeat(5, minmax(0, 1fr));
+  grid-template-columns: 1.5fr repeat(5, minmax(0, 1fr));
   gap: 16px;
 }
 .metric-card {
   padding: 20px; background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow);
 }
-.metric-card:not(.featured) .metric-label { letter-spacing: .1em; overflow-wrap: anywhere; }
+.metric-card:not(.featured) .metric-label { letter-spacing: .05em; font-size: .68rem; hyphens: auto; overflow-wrap: anywhere; }
 .metric-card strong { display: block; margin-top: 12px; font-size: 2rem; }
 .metric-card small { color: var(--muted); line-height: 1.45; }
 .gradient-card {
@@ -316,6 +316,27 @@ button:disabled { opacity: .6; cursor: progress; }
   100% { background: transparent; box-shadow: 0 0 0 10px transparent; }
 }
 .pending-tag { width: fit-content; color: var(--warn); font-size: .8rem; font-weight: 700; }
+
+/* ---------- editar e excluir ---------- */
+.entry-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 2px; }
+.entry-btn {
+  cursor: pointer; background: transparent; border: 1px solid transparent; color: var(--muted);
+  border-radius: 999px; padding: 5px 11px; font-size: .8rem; font-weight: 600; transition: .16s ease;
+}
+.entry-btn:hover { background: var(--surface-soft); border-color: var(--border); color: var(--text); }
+.entry-btn[data-action="delete"]:hover { color: var(--danger); border-color: var(--danger); }
+
+.danger-btn {
+  border: 0; cursor: pointer; border-radius: 16px; padding: 14px 22px; font-weight: 700; margin-left: auto;
+  background: var(--danger); color: #fff; transition: .18s ease;
+}
+.danger-btn:hover { transform: translateY(-1px); }
+.modal-small { width: min(460px, calc(100% - 24px)); }
+.delete-preview {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 14px 16px;
+  border-radius: 16px; background: var(--surface-soft); border: 1px solid var(--border);
+}
+.delete-text { margin: 0; line-height: 1.6; overflow-wrap: anywhere; }
 .timeline-more { margin-top: 12px; align-self: flex-start; }
 
 @media (prefers-reduced-motion: reduce) {
@@ -345,7 +366,7 @@ button:disabled { opacity: .6; cursor: progress; }
   .timeline-entry { grid-template-columns: 1fr; gap: 8px; }
 
   /* formulário vira "gaveta" colada embaixo, mais fácil de usar com o polegar */
-  .modal { width: 100%; max-width: none; margin: auto 0 0; border-radius: 28px 28px 0 0; max-height: 92dvh; }
+  .modal, .modal-small { width: 100%; max-width: none; margin: auto 0 0; border-radius: 28px 28px 0 0; max-height: 92dvh; }
   .modal-body { padding: 20px 18px 24px; }
   .topbar-actions { justify-content: flex-start; }
 }

@@ -230,6 +230,8 @@ function renderTimeline(sortedEntries, pendingKeys) {
         ${waiting}
       </div>
     `;
+    // Editar e excluir só aparecem com o GitHub conectado (sem token o painel é somente leitura)
+    if (currentState.hasToken) item.querySelector(".timeline-main").appendChild(buildEntryActions(entry));
     timeline.appendChild(item);
   });
 
@@ -244,6 +246,30 @@ function renderTimeline(sortedEntries, pendingKeys) {
     });
     timeline.appendChild(more);
   }
+}
+
+function buildEntryActions(entry) {
+  const box = document.createElement("div");
+  box.className = "entry-actions";
+
+  const editBtn = document.createElement("button");
+  editBtn.type = "button";
+  editBtn.className = "entry-btn";
+  editBtn.dataset.action = "edit";
+  editBtn.textContent = "✏️ Editar";
+  editBtn.setAttribute("aria-label", `Editar registro de ${formatDate(entry.date)}`);
+  editBtn.addEventListener("click", () => openEdit(entry));
+
+  const deleteBtn = document.createElement("button");
+  deleteBtn.type = "button";
+  deleteBtn.className = "entry-btn";
+  deleteBtn.dataset.action = "delete";
+  deleteBtn.textContent = "🗑️ Excluir";
+  deleteBtn.setAttribute("aria-label", `Excluir registro de ${formatDate(entry.date)}`);
+  deleteBtn.addEventListener("click", () => openDelete(entry));
+
+  box.append(editBtn, deleteBtn);
+  return box;
 }
 
 // ---------- painel ----------
@@ -293,7 +319,7 @@ const SYNC_LABELS = {
   readonly: () => "🔒 Somente leitura · conectar",
   syncing: () => "Sincronizando…",
   synced: () => "Sincronizado",
-  pending: state => `${plural(state.pendingCount, "registro pendente", "registros pendentes")} · tentar de novo`,
+  pending: state => `${plural(state.pendingCount, "alteração pendente", "alterações pendentes")} · tentar de novo`,
   auth: () => "Reconectar ao GitHub"
 };
 
@@ -314,7 +340,8 @@ function entriesSignature(state) {
 }
 
 function pendingSignature(state) {
-  return JSON.stringify([...state.pendingKeys].sort());
+  // inclui hasToken porque os botões Editar/Excluir só existem com o GitHub conectado
+  return JSON.stringify([[...state.pendingKeys].sort(), state.hasToken]);
 }
 
 function renderAll(state) {
@@ -432,12 +459,24 @@ function showFormError(text) {
   box.hidden = !text;
 }
 
+// Quando não é null, o formulário está editando este registro (em vez de criar um novo)
+let editingEntry = null;
+
+function setFormMode(editing) {
+  document.getElementById("registerKicker").textContent = editing ? "Editar registro" : "Novo registro";
+  document.getElementById("registerTitle").textContent = editing ? "Ajuste o que precisar" : "O que você construiu hoje?";
+  document.getElementById("saveBtn").textContent = editing ? "Salvar alterações" : "Salvar registro";
+}
+
 function openRegister() {
   if (!Store.hasToken()) {
     afterConnectOpenRegister = true;
     openConnect();
     return;
   }
+  editingEntry = null;
+  setFormMode(false);
+
   const lastType = localStorage.getItem(LAST_TYPE_KEY);
   const radio = document.querySelector(`#registerForm input[name="type"][value="${lastType}"]`)
     || document.querySelector('#registerForm input[name="type"][value="Aprendizado"]');
@@ -455,6 +494,31 @@ function openRegister() {
   document.getElementById("fieldText").focus();
 }
 
+function openEdit(entry) {
+  if (!Store.hasToken()) {
+    afterConnectOpenRegister = false;
+    openConnect();
+    return;
+  }
+  editingEntry = entry;
+  setFormMode(true);
+
+  const radio = document.querySelector(`#registerForm input[name="type"][value="${entry.type}"]`);
+  if (radio) radio.checked = true;
+
+  document.getElementById("fieldText").value = entry.text;
+  document.getElementById("fieldCategory").value = entry.category;
+  document.getElementById("charCount").textContent = entry.text.length;
+  document.getElementById("fieldDate").value = entry.date;
+  updateDateChips();
+  showFormError("");
+  fillCategorySuggestions();
+
+  const dialog = document.getElementById("registerModal");
+  if (!dialog.open) dialog.showModal();
+  document.getElementById("fieldText").focus();
+}
+
 function submitRegister(event) {
   event.preventDefault();
   const form = event.currentTarget;
@@ -465,28 +529,77 @@ function submitRegister(event) {
     date: form.elements.date.value
   };
 
+  const editing = editingEntry;
   let result;
   try {
-    result = Store.add(data);
+    result = editing ? Store.edit(editing, data) : Store.add(data);
   } catch (err) {
     showFormError(err.message);
     return;
   }
 
   localStorage.setItem(LAST_TYPE_KEY, data.type);
-  // O registro já entrou no painel dentro de Store.add; agora marca qual destacar e redesenha só a lista
+  // A mudança já entrou no painel dentro do Store; agora marca qual registro destacar e redesenha só a lista
   highlightKey = Store.entryKey(result.entry);
   highlightStartedAt = Date.now();
   timelineLimit = Math.max(timelineLimit, TIMELINE_PAGE);
   renderTimeline(sortNewestFirst(currentState.entries), currentState.pendingKeys);
   document.getElementById("registerModal").close();
-  document.getElementById("timelineSection").scrollIntoView({ behavior: "smooth", block: "nearest" });
-  showToast("✅ Registro adicionado!");
+  if (!editing) document.getElementById("timelineSection").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  showToast(editing ? "✅ Registro atualizado!" : "✅ Registro adicionado!");
   setTimeout(() => { highlightKey = null; }, 3500);
 
-  result.done.then(outcome => {
+  announceSync(result.done);
+}
+
+// Depois do aviso imediato, conta como foi o envio ao GitHub
+function announceSync(done) {
+  done.then(outcome => {
     if (outcome.ok) showToast("☁️ Salvo no GitHub");
     else showToast(`Guardei no navegador, mas ainda não foi para o GitHub. ${outcome.message}`, "warn");
+  });
+}
+
+// ---------- excluir registro ----------
+let deletingEntry = null;
+
+function openDelete(entry) {
+  if (!Store.hasToken()) {
+    afterConnectOpenRegister = false;
+    openConnect();
+    return;
+  }
+  deletingEntry = entry;
+  const preview = document.getElementById("deletePreview");
+  preview.innerHTML = "";
+  const tag = document.createElement("span");
+  tag.className = "timeline-tag";
+  tag.textContent = `${TYPE_MAP[entry.type]?.emoji || "✨"} ${entry.category} · ${entry.type}`;
+  const date = document.createElement("small");
+  date.className = "field-hint";
+  date.textContent = formatDate(entry.date);
+  const text = document.createElement("p");
+  text.className = "delete-text";
+  text.textContent = entry.text;
+  preview.append(date, tag, text);
+
+  const dialog = document.getElementById("deleteModal");
+  if (!dialog.open) dialog.showModal();
+  document.getElementById("deleteCancelBtn").focus();
+}
+
+function setupDelete() {
+  const dialog = document.getElementById("deleteModal");
+  setupDialog(dialog);
+  dialog.addEventListener("close", () => { deletingEntry = null; });
+  document.getElementById("deleteCancelBtn").addEventListener("click", () => dialog.close());
+  document.getElementById("deleteConfirmBtn").addEventListener("click", () => {
+    const entry = deletingEntry;
+    dialog.close();
+    if (!entry) return;
+    const { done } = Store.remove(entry);
+    showToast("🗑️ Registro excluído");
+    announceSync(done);
   });
 }
 
@@ -495,8 +608,9 @@ function setupRegisterForm() {
   const form = document.getElementById("registerForm");
   setupDialog(dialog);
 
-  document.getElementById("registerBtn").addEventListener("click", openRegister);
-  document.getElementById("openRegisterBtn").addEventListener("click", openRegister);
+  document.getElementById("registerBtn").addEventListener("click", () => openRegister());
+  document.getElementById("openRegisterBtn").addEventListener("click", () => openRegister());
+  dialog.addEventListener("close", () => { editingEntry = null; });
 
   form.addEventListener("submit", submitRegister);
   form.addEventListener("keydown", event => {
@@ -603,6 +717,7 @@ function setupConnect() {
 function boot() {
   setupTheme();
   setupRegisterForm();
+  setupDelete();
   setupConnect();
 
   Store.subscribe(onStoreChange);

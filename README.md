@@ -36,7 +36,16 @@ O que acontece por trás:
 - Em outro aparelho, o painel confere o GitHub a cada ~45 segundos e quando você volta para a aba.
 - Se você registrar de dois aparelhos ao mesmo tempo, os registros são combinados, nenhum sobrescreve o outro.
 
-O indicador no topo mostra o estado: **Sincronizado**, **Sincronizando…**, **registros pendentes**, **Reconectar** ou **Somente leitura** (sem token, só dá para ver).
+## Editar e excluir registros
+
+Com o GitHub conectado, cada registro da linha do tempo tem os botões **✏️ Editar** e **🗑️ Excluir**.
+
+- **Editar** abre o mesmo formulário já preenchido. O registro continua no mesmo lugar da ordem, só muda o conteúdo.
+- **Excluir** pede uma confirmação antes de apagar. O registro sai do painel e de `data/progress.json`, mas continua no histórico de commits do repositório. Se precisar recuperar, é só pedir ou desfazer o commit.
+- Funcionam igual a adicionar: aparecem na hora, ficam guardadas no navegador se a internet cair e são reenviadas sozinhas. Se outro aparelho mexeu no arquivo ao mesmo tempo, as mudanças dos dois são preservadas.
+- Sem token (somente leitura), os botões não aparecem.
+
+O indicador no topo mostra o estado: **Sincronizado**, **Sincronizando…**, **alterações pendentes**, **Reconectar** ou **Somente leitura** (sem token, só dá para ver).
 
 ## Ver o painel no seu computador
 

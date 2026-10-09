@@ -141,6 +141,7 @@
             <li>Escolha o <b>tipo</b>, escreva o que fez e a <b>categoria</b>.</li>
             <li>Toque em <b>Salvar</b>: o registro aparece na hora no painel.</li>
             <li>Ele é enviado ao GitHub em segundos e fica guardado, mesmo se a internet cair.</li>
+            <li>Para corrigir ou apagar, use <b>Editar</b> e <b>Excluir</b> em cada registro.</li>
           </ol>
           <button class="secondary-btn" id="openRegisterBtn" type="button">Registrar agora</button>
         </article>
@@ -153,7 +154,7 @@
     <form id="registerForm" class="modal-body" novalidate>
       <header class="modal-head">
         <div>
-          <p class="panel-kicker">Novo registro</p>
+          <p class="panel-kicker" id="registerKicker">Novo registro</p>
           <h3 id="registerTitle">O que você construiu hoje?</h3>
         </div>
         <button type="button" class="icon-btn" data-close aria-label="Fechar">✕</button>
@@ -239,6 +240,27 @@
           <button type="submit" class="primary-btn" id="connectBtn">Conectar</button>
         </div>
       </form>
+    </div>
+  </dialog>
+
+  <!-- Confirmar exclusão -->
+  <dialog id="deleteModal" class="modal modal-small" aria-labelledby="deleteTitle">
+    <div class="modal-body">
+      <header class="modal-head">
+        <div>
+          <p class="panel-kicker">Atenção</p>
+          <h3 id="deleteTitle">Excluir este registro?</h3>
+        </div>
+        <button type="button" class="icon-btn" data-close aria-label="Fechar">✕</button>
+      </header>
+
+      <div class="delete-preview" id="deletePreview"></div>
+      <p class="modal-intro">O registro sai do painel e do arquivo no GitHub. Ele continua no histórico do repositório, caso você precise recuperar.</p>
+
+      <div class="modal-actions">
+        <button type="button" class="ghost-btn" id="deleteCancelBtn">Cancelar</button>
+        <button type="button" class="danger-btn" id="deleteConfirmBtn">Excluir</button>
+      </div>
     </div>
   </dialog>
 

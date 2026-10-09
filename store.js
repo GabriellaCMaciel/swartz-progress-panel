@@ -4,9 +4,11 @@
  * Como funciona:
  *  - Os registros ficam em data/progress.json, dentro do seu repositório no GitHub.
  *  - Com o token conectado, o painel lê e grava esse arquivo direto pela API do GitHub.
- *  - Quando você registra algo, o registro entra na hora na tela e numa fila guardada no navegador
- *    (localStorage). Só sai da fila quando o GitHub confirma. Se a internet cair ou o token
- *    expirar, nada se perde: fica pendente e é reenviado depois.
+ *  - Cada mudança (adicionar, editar ou excluir) aparece na hora na tela e entra numa fila guardada
+ *    no navegador (localStorage). Ela só sai da fila quando o GitHub confirma. Se a internet cair ou
+ *    o token expirar, nada se perde: a mudança fica pendente e é reenviada depois.
+ *  - A cada envio, a fila é aplicada sobre a versão MAIS RECENTE do arquivo no GitHub, então mudanças
+ *    feitas em outro aparelho não são sobrescritas.
  *  - Sem token, o painel só lê o data/progress.json publicado (modo somente leitura).
  */
 const Store = (() => {
@@ -75,11 +77,6 @@ const Store = (() => {
     return entry;
   }
 
-  function mergeEntries(remote, pendingList) {
-    const keys = new Set(remote.map(entryKey));
-    return [...remote, ...pendingList.filter(p => !keys.has(entryKey(p)))];
-  }
-
   function sortForFile(entries) {
     // Array.sort é estável: registros do mesmo dia mantêm a ordem em que foram feitos
     return [...entries].sort((a, b) => a.date.localeCompare(b.date));
@@ -90,10 +87,70 @@ const Store = (() => {
     return list.filter(e => e && typeof e === "object" && e.date && e.type);
   }
 
+  function normalizeCache(value) {
+    return Array.isArray(value) ? value.filter(e => e && e.date && e.type) : [];
+  }
+
+  function sameList(a, b) {
+    return JSON.stringify(a.map(entryKey)) === JSON.stringify(b.map(entryKey));
+  }
+
+  // ---------- fila de mudanças ----------
+  // Cada item da fila é uma "operação":
+  //   { op: "add", entry }                  adiciona um registro
+  //   { op: "edit", oldKey, entry }         troca o registro de chave oldKey por entry
+  //   { op: "delete", key }                 remove o registro de chave key
+  function migrateOp(raw) {
+    if (!raw || typeof raw !== "object") return null;
+    if (raw.op === "delete") return typeof raw.key === "string" ? raw : null;
+    if (raw.op === "edit") return raw.entry && raw.entry.date && typeof raw.oldKey === "string" ? raw : null;
+    if (raw.op === "add") return raw.entry && raw.entry.date ? raw : null;
+    // formato antigo: a fila guardava só os registros novos
+    if (raw.date && raw.type && raw.text) return { op: "add", entry: raw };
+    return null;
+  }
+
+  // Aplica as operações sobre uma lista de registros e devolve a lista nova (sem alterar a original)
+  function applyOps(list, ops) {
+    let result = list.slice();
+    for (const op of ops) {
+      if (op.op === "delete") {
+        result = result.filter(e => entryKey(e) !== op.key);
+      } else if (op.op === "edit") {
+        const index = result.findIndex(e => entryKey(e) === op.oldKey);
+        const newKey = entryKey(op.entry);
+        if (index === -1) {
+          // o original já não existe (ex.: apagado em outro aparelho): mantém o texto que você escreveu
+          if (!result.some(e => entryKey(e) === newKey)) result.push(op.entry);
+        } else if (result.some((e, i) => i !== index && entryKey(e) === newKey)) {
+          result.splice(index, 1); // já existe um igual: só tira o antigo
+        } else {
+          result[index] = op.entry; // troca no mesmo lugar, a ordem não muda
+        }
+      } else if (!result.some(e => entryKey(e) === entryKey(op.entry))) {
+        result.push(op.entry);
+      }
+    }
+    return result;
+  }
+
+  function commitMessage(batch) {
+    const count = { add: 0, edit: 0, delete: 0 };
+    batch.forEach(op => { count[op.op] += 1; });
+    if (count.add && !count.edit && !count.delete) {
+      return `feat: registrar progresso pelo painel (${count.add} ${count.add === 1 ? "registro" : "registros"})`;
+    }
+    const parts = [];
+    if (count.add) parts.push(`${count.add} ${count.add === 1 ? "adicionado" : "adicionados"}`);
+    if (count.edit) parts.push(`${count.edit} ${count.edit === 1 ? "editado" : "editados"}`);
+    if (count.delete) parts.push(`${count.delete} ${count.delete === 1 ? "excluído" : "excluídos"}`);
+    return `chore: atualizar registros pelo painel (${parts.join(", ")})`;
+  }
+
   // ---------- estado ----------
   let token = lsGet(KEYS.token) || null;
   let remoteEntries = normalizeCache(lsGetJson(KEYS.cache, []));
-  let pending = lsGetJson(KEYS.pending, []).filter(e => e && e.date && e.type && e.text);
+  let pending = lsGetJson(KEYS.pending, []).map(migrateOp).filter(Boolean);
   let remoteEtag = null;
   let syncing = false;
   let authProblem = false;
@@ -102,10 +159,6 @@ const Store = (() => {
   let pollTimer = null;
   const listeners = new Set();
 
-  function normalizeCache(value) {
-    return Array.isArray(value) ? value.filter(e => e && e.date && e.type) : [];
-  }
-
   function computeStatus() {
     if (syncing) return "syncing";
     if (authProblem) return "auth";
@@ -113,14 +166,19 @@ const Store = (() => {
     return token ? "synced" : "readonly";
   }
 
+  function displayEntries() {
+    return applyOps(remoteEntries, pending);
+  }
+
   function snapshot() {
+    const entries = displayEntries();
     const remoteKeys = new Set(remoteEntries.map(entryKey));
-    const stillPending = pending.filter(p => !remoteKeys.has(entryKey(p)));
     return {
-      entries: mergeEntries(remoteEntries, pending),
+      entries,
       status: computeStatus(),
-      pendingCount: stillPending.length,
-      pendingKeys: new Set(stillPending.map(entryKey)),
+      pendingCount: pending.length,
+      // registros que estão na tela mas ainda não chegaram ao GitHub
+      pendingKeys: new Set(entries.map(entryKey).filter(key => !remoteKeys.has(key))),
       message,
       hasToken: Boolean(token)
     };
@@ -226,7 +284,7 @@ const Store = (() => {
   function sync() {
     return enqueue(async () => {
       if (!pending.length) return { ok: true };
-      if (!token) return { ok: false, message: "Conecte o GitHub para enviar os registros." };
+      if (!token) return { ok: false, message: "Conecte o GitHub para enviar as mudanças." };
 
       syncing = true;
       emit();
@@ -249,12 +307,11 @@ const Store = (() => {
           }
 
           const batch = pending.slice();
-          const remoteKeys = new Set(remoteEntries.map(entryKey));
-          const fresh = batch.filter(p => !remoteKeys.has(entryKey(p)));
+          const next = applyOps(remoteEntries, batch);
 
-          if (!fresh.length) {
-            // já estavam no GitHub (ex.: enviados por outra aba ou aparelho)
-            pending = pending.filter(p => !batch.includes(p));
+          if (sameList(next, remoteEntries)) {
+            // nada a mudar no GitHub (já estava assim, ou a mudança se anulou, ex.: adicionou e excluiu)
+            pending = pending.filter(op => !batch.includes(op));
             savePending();
             saveCache();
             authProblem = false;
@@ -263,9 +320,9 @@ const Store = (() => {
             break;
           }
 
-          const merged = sortForFile([...remoteEntries, ...fresh]);
+          const merged = sortForFile(next);
           const body = {
-            message: `feat: registrar progresso pelo painel (${fresh.length} ${fresh.length === 1 ? "registro" : "registros"})`,
+            message: commitMessage(batch),
             content: toBase64(JSON.stringify(merged, null, 2) + "\n"),
             branch: REPO.branch
           };
@@ -280,7 +337,7 @@ const Store = (() => {
           if (response.ok) {
             remoteEntries = merged;
             remoteEtag = null; // o GitHub gerou outro ETag: na próxima leitura buscamos de novo
-            pending = pending.filter(p => !batch.includes(p));
+            pending = pending.filter(op => !batch.includes(op));
             savePending();
             saveCache();
             authProblem = false;
@@ -310,19 +367,41 @@ const Store = (() => {
   }
 
   // ---------- API pública ----------
+  function startSync() {
+    return token
+      ? sync()
+      : Promise.resolve({ ok: false, message: "Conecte o GitHub para enviar as mudanças." });
+  }
+
+  function queueOp(op) {
+    pending.push(op);
+    savePending(); // guardado no navegador antes de qualquer envio
+    emit();
+    return startSync();
+  }
+
   function add(raw) {
     const entry = cleanEntry(raw);
     const key = entryKey(entry);
-    if (mergeEntries(remoteEntries, pending).some(e => entryKey(e) === key)) {
+    if (displayEntries().some(e => entryKey(e) === key)) {
       throw new Error("Esse registro já existe no painel.");
     }
-    pending.push(entry);
-    savePending(); // guardado no navegador antes de qualquer envio
-    emit();
-    const done = token
-      ? sync()
-      : Promise.resolve({ ok: false, message: "Conecte o GitHub para enviar os registros." });
-    return { entry, done };
+    return { entry, done: queueOp({ op: "add", entry }) };
+  }
+
+  function edit(oldEntry, raw) {
+    const entry = cleanEntry(raw);
+    const oldKey = entryKey(oldEntry);
+    const newKey = entryKey(entry);
+    if (newKey === oldKey) return { entry, changed: false, done: Promise.resolve({ ok: true }) };
+    if (displayEntries().some(e => entryKey(e) === newKey)) {
+      throw new Error("Já existe outro registro igual a esse.");
+    }
+    return { entry, changed: true, done: queueOp({ op: "edit", oldKey, entry }) };
+  }
+
+  function remove(entry) {
+    return { done: queueOp({ op: "delete", key: entryKey(entry) }) };
   }
 
   async function connect(rawToken) {
@@ -392,6 +471,8 @@ const Store = (() => {
     init,
     subscribe(fn) { listeners.add(fn); fn(snapshot()); return () => listeners.delete(fn); },
     add,
+    edit,
+    remove,
     sync,
     refresh,
     connect,
