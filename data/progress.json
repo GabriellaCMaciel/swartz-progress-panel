@@ -1,35 +1,5 @@
 [
   {
-    "date": "2026-09-28",
-    "category": "Python",
-    "type": "Aprendizado",
-    "text": "Aprendi a encapsular informações em Python."
-  },
-  {
-    "date": "2026-09-28",
-    "category": "Robótica",
-    "type": "Aprendizado",
-    "text": "Aprendi como funciona um sensor infravermelho."
-  },
-  {
-    "date": "2026-09-28",
-    "category": "Arduino",
-    "type": "Aprendizado",
-    "text": "Dominei o uso de Arduino em robótica."
-  },
-  {
-    "date": "2026-09-28",
-    "category": "Portfólio",
-    "type": "Projeto",
-    "text": "Finalizei a primeira versão do meu portfólio."
-  },
-  {
-    "date": "2026-09-28",
-    "category": "42SP",
-    "type": "Conquista",
-    "text": "Fui aprovada para a Piscine na 42SP."
-  },
-  {
     "date": "2026-10-08",
     "category": "Portfólio",
     "type": "Projeto",
