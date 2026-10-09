@@ -1,7 +1,7 @@
 name: Registrar progresso
-about: Use este formulário para adicionar um novo aprendizado, entrega, projeto ou conquista ao painel.
+description: Use este formulário para adicionar um novo aprendizado, entrega, projeto ou conquista ao painel.
 title: "[Progresso] "
-labels: [progress-entry]
+labels: ["progress-entry"]
 body:
   - type: markdown
     attributes:
@@ -12,16 +12,16 @@ body:
     id: date
     attributes:
       label: Data
-      description: Use o formato AAAA-MM-DD.
-      placeholder: 2026-09-28
+      description: "Formato AAAA-MM-DD ou DD/MM/AAAA. Deixe em branco para usar a data de hoje."
+      placeholder: 2026-10-09
     validations:
-      required: true
+      required: false
 
   - type: input
     id: category
     attributes:
       label: Categoria
-      description: Ex.: Python, React, EFG, Portfólio, Vivo, 42SP.
+      description: "Ex.: Python, React, EFG, Portfólio, Vivo, 42SP."
       placeholder: Python
     validations:
       required: true

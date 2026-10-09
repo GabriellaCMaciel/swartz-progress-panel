@@ -18,15 +18,35 @@ function formatDate(dateString) {
   return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }).format(parseLocalDate(dateString));
 }
 
-function getMonthLabel(dateString) {
-  return new Intl.DateTimeFormat("pt-BR", { month: "short", year: "2-digit" }).format(parseLocalDate(dateString));
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
+function plural(count, singular, pluralForm) {
+  return `${count} ${count === 1 ? singular : pluralForm}`;
+}
+
+function startOfToday() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return today;
+}
+
+// Sequência = dias seguidos com registro, contando até hoje (ou até ontem, se hoje ainda não teve registro).
+// Se o último registro foi antes de ontem, a sequência está zerada.
 function calculateStreak(entries) {
   if (!entries.length) return 0;
   const uniqueDates = [...new Set(entries.map(entry => entry.date))]
     .map(parseLocalDate)
     .sort((a, b) => b - a);
+
+  const daysSinceLast = Math.round((startOfToday() - uniqueDates[0]) / 86400000);
+  if (daysSinceLast > 1) return 0;
 
   let streak = 1;
   for (let i = 0; i < uniqueDates.length - 1; i++) {
@@ -35,6 +55,37 @@ function calculateStreak(entries) {
     else break;
   }
   return streak;
+}
+
+// Conta registros por mês em ordem cronológica, incluindo meses sem registro (valor 0)
+// até o mês atual, para a linha do gráfico não "pular" períodos.
+function buildMonthlySeries(entries) {
+  if (!entries.length) return { labels: [], values: [] };
+
+  const counts = {};
+  let first = null;
+  let last = null;
+  entries.forEach(entry => {
+    const date = parseLocalDate(entry.date);
+    const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
+    const key = `${monthStart.getFullYear()}-${monthStart.getMonth()}`;
+    counts[key] = (counts[key] || 0) + 1;
+    if (!first || monthStart < first) first = monthStart;
+    if (!last || monthStart > last) last = monthStart;
+  });
+
+  const now = new Date();
+  const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  if (currentMonth > last) last = currentMonth;
+
+  const formatter = new Intl.DateTimeFormat("pt-BR", { month: "short", year: "2-digit" });
+  const labels = [];
+  const values = [];
+  for (let cursor = new Date(first); cursor <= last; cursor.setMonth(cursor.getMonth() + 1)) {
+    labels.push(formatter.format(cursor));
+    values.push(counts[`${cursor.getFullYear()}-${cursor.getMonth()}`] || 0);
+  }
+  return { labels, values };
 }
 
 function countLast7Days(entries) {
@@ -81,17 +132,13 @@ let categoryChart;
 
 function renderCharts(entries) {
   const styles = getChartDefaults();
-  const monthCounts = {};
   const categoryCounts = {};
 
   entries.forEach(entry => {
-    const month = getMonthLabel(entry.date);
-    monthCounts[month] = (monthCounts[month] || 0) + 1;
     categoryCounts[entry.category] = (categoryCounts[entry.category] || 0) + 1;
   });
 
-  const monthLabels = Object.keys(monthCounts);
-  const monthValues = monthLabels.map(label => monthCounts[label]);
+  const { labels: monthLabels, values: monthValues } = buildMonthlySeries(entries);
   const categories = Object.entries(categoryCounts).sort((a, b) => b[1] - a[1]);
 
   if (monthlyChart) monthlyChart.destroy();
@@ -159,8 +206,8 @@ function renderTimeline(entries) {
     item.innerHTML = `
       <div class="timeline-date">${formatDate(entry.date)}</div>
       <div class="timeline-main">
-        <span class="timeline-tag">${TYPE_MAP[entry.type]?.emoji || "✨"} ${entry.category} · ${entry.type}</span>
-        <div class="timeline-text">${entry.text}</div>
+        <span class="timeline-tag">${TYPE_MAP[entry.type]?.emoji || "✨"} ${escapeHtml(entry.category)} · ${escapeHtml(entry.type)}</span>
+        <div class="timeline-text">${escapeHtml(entry.text)}</div>
       </div>
     `;
     timeline.appendChild(item);
@@ -176,9 +223,9 @@ function renderDashboard(entries) {
   }).length;
 
   document.getElementById("totalProgress").textContent = entries.length;
-  document.getElementById("currentStreak").textContent = `${calculateStreak(entries)} dias`;
+  document.getElementById("currentStreak").textContent = plural(calculateStreak(entries), "dia", "dias");
   document.getElementById("thisMonthCount").textContent = `${thisMonthCount} este mês`;
-  document.getElementById("weekFocusValue").textContent = `${countLast7Days(entries)} registros`;
+  document.getElementById("weekFocusValue").textContent = plural(countLast7Days(entries), "registro", "registros");
 
   Object.values(TYPE_MAP).forEach(({ id }) => {
     document.getElementById(id).textContent = 0;
@@ -203,7 +250,9 @@ function renderDashboard(entries) {
 
 async function boot() {
   setupTheme();
-  const response = await fetch("data/progress.json");
+  // no-store: garante que um registro novo apareça logo, sem ficar preso no cache do navegador
+  const response = await fetch("data/progress.json", { cache: "no-store" });
+  if (!response.ok) throw new Error(`Falha ao carregar data/progress.json (${response.status})`);
   const entries = await response.json();
   renderDashboard(entries);
 
@@ -213,5 +262,5 @@ async function boot() {
 
 boot().catch(err => {
   console.error(err);
-  document.getElementById("timeline").innerHTML = '<p class="empty-state">Erro ao carregar os dados do painel.</p>';
+  document.getElementById("timeline").innerHTML = '<p class="empty-state">Erro ao carregar os dados do painel. Se você abriu o <code>index.html</code> direto do computador, use um servidor local (<code>python3 -m http.server</code>) ou o link do GitHub Pages.</p>';
 });
