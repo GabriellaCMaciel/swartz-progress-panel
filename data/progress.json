@@ -28,5 +28,11 @@
     "category": "42SP",
     "type": "Conquista",
     "text": "Fui aprovada para a Piscine na 42SP."
+  },
+  {
+    "date": "2026-10-08",
+    "category": "Portfólio",
+    "type": "Projeto",
+    "text": "Iniciei a estrutura em HTML do meu portfólio."
   }
 ]
