@@ -6,15 +6,15 @@
     "text": "Iniciei a estrutura HTML do meu portfólio."
   },
   {
+    "date": "2026-10-08",
+    "category": "Portfólio",
+    "type": "Aprendizado",
+    "text": "Estudo e aplicação de Identidade Visual à minha marca pessoal"
+  },
+  {
     "date": "2026-10-09",
     "category": "Portfólio",
     "type": "Projeto",
     "text": "Iniciei o CSS do meu portfólio"
-  },
-  {
-    "date": "2026-10-09",
-    "category": "Projeto",
-    "type": "Aprendizado",
-    "text": "Estudo e aplicação de Identidade Visual à minha marca pessoal"
   }
 ]
