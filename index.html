@@ -3,11 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Segurança: a página guarda um token do GitHub, então só carrega código do próprio site e fala só com a API do GitHub -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self' https://api.github.com; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'" />
   <title>Swartz Progress Panel</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -21,7 +22,7 @@
         </div>
       </div>
 
-      <a class="primary-btn" id="registerBtn" href="#" target="_blank" rel="noopener noreferrer">+ Registrar progresso</a>
+      <button class="primary-btn" id="registerBtn" type="button" title="Atalho: tecla N">+ Registrar progresso</button>
 
       <nav class="sidebar-nav">
         <a href="#overview" class="active">Dashboard</a>
@@ -50,6 +51,7 @@
           <p class="subtitle">Aprendizados, entregas, projetos e conquistas em um lugar só.</p>
         </div>
         <div class="topbar-actions">
+          <button id="syncChip" class="sync-chip" type="button" data-state="readonly">Somente leitura</button>
           <button id="themeToggle" class="ghost-btn" type="button">🌙 Tema escuro</button>
         </div>
       </header>
@@ -135,17 +137,115 @@
             </div>
           </div>
           <ol class="steps">
-            <li>Clique em <b>Registrar progresso</b>.</li>
-            <li>Preencha <b>data, categoria, tipo e descrição</b>.</li>
-            <li>Envie o formulário no GitHub.</li>
-            <li>A automação atualiza o arquivo <code>progress.json</code>.</li>
-            <li>O painel publica de novo sozinho no GitHub Pages.</li>
+            <li>Clique em <b>Registrar progresso</b> (ou aperte a tecla <b>N</b>).</li>
+            <li>Escolha o <b>tipo</b>, escreva o que fez e a <b>categoria</b>.</li>
+            <li>Toque em <b>Salvar</b>: o registro aparece na hora no painel.</li>
+            <li>Ele é enviado ao GitHub em segundos e fica guardado, mesmo se a internet cair.</li>
           </ol>
-          <a class="secondary-btn" id="openIssueBtn" href="#" target="_blank" rel="noopener noreferrer">Abrir formulário</a>
+          <button class="secondary-btn" id="openRegisterBtn" type="button">Registrar agora</button>
         </article>
       </section>
     </main>
   </div>
+
+  <!-- Formulário de registro -->
+  <dialog id="registerModal" class="modal" aria-labelledby="registerTitle">
+    <form id="registerForm" class="modal-body" novalidate>
+      <header class="modal-head">
+        <div>
+          <p class="panel-kicker">Novo registro</p>
+          <h3 id="registerTitle">O que você construiu hoje?</h3>
+        </div>
+        <button type="button" class="icon-btn" data-close aria-label="Fechar">✕</button>
+      </header>
+
+      <fieldset class="field">
+        <legend class="field-label">Tipo</legend>
+        <div class="type-chips">
+          <label class="type-chip"><input type="radio" name="type" value="Aprendizado" checked /><span>📚 Aprendizado</span></label>
+          <label class="type-chip"><input type="radio" name="type" value="Entrega" /><span>✅ Entrega</span></label>
+          <label class="type-chip"><input type="radio" name="type" value="Projeto" /><span>🛠️ Projeto</span></label>
+          <label class="type-chip"><input type="radio" name="type" value="Conquista" /><span>🏆 Conquista</span></label>
+        </div>
+      </fieldset>
+
+      <div class="field">
+        <label class="field-label" for="fieldText">Descrição</label>
+        <textarea id="fieldText" name="text" rows="3" maxlength="500" placeholder="Ex.: Aprendi a fazer componentes reutilizáveis no React." required></textarea>
+        <small class="field-hint"><span id="charCount">0</span>/500</small>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="fieldCategory">Categoria</label>
+        <input id="fieldCategory" name="category" type="text" list="categoryList" maxlength="40" autocomplete="off" placeholder="Python, React, 42SP…" required />
+        <datalist id="categoryList"></datalist>
+        <div class="quick-chips" id="categoryChips"></div>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="fieldDate">Data</label>
+        <div class="date-row">
+          <button type="button" class="chip-btn" data-date="today">Hoje</button>
+          <button type="button" class="chip-btn" data-date="yesterday">Ontem</button>
+          <input id="fieldDate" name="date" type="date" required />
+        </div>
+      </div>
+
+      <p class="form-error" id="formError" role="alert" hidden></p>
+
+      <footer class="modal-actions">
+        <small class="field-hint">Ctrl + Enter para salvar</small>
+        <button type="submit" class="primary-btn" id="saveBtn">Salvar registro</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- Conectar ao GitHub (uma vez só) -->
+  <dialog id="connectModal" class="modal" aria-labelledby="connectTitle">
+    <div class="modal-body">
+      <header class="modal-head">
+        <div>
+          <p class="panel-kicker">Conexão</p>
+          <h3 id="connectTitle">Conectar ao GitHub</h3>
+        </div>
+        <button type="button" class="icon-btn" data-close aria-label="Fechar">✕</button>
+      </header>
+
+      <p class="modal-intro" id="connectIntro">
+        Para o painel salvar sozinho no seu repositório, crie um token de acesso. É só uma vez por navegador.
+      </p>
+
+      <div id="connectedBox" class="connected-box" hidden>
+        <strong>✅ Conectado ao GitHub.</strong>
+        <span>Seus registros são salvos direto no repositório.</span>
+      </div>
+
+      <ol class="steps" id="connectSteps">
+        <li>
+          Abra a <a class="inline-link" href="https://github.com/settings/personal-access-tokens/new?name=Swartz%20Progress%20Panel&amp;description=Registrar%20progresso%20pelo%20painel&amp;target_name=GabriellaCMaciel&amp;expires_in=365&amp;contents=write" target="_blank" rel="noopener noreferrer">página de criação do token</a>.
+        </li>
+        <li>Em <b>Repository access</b>, escolha <b>Only select repositories</b> e marque <code>swartz-progress-panel</code>.</li>
+        <li>Em <b>Permissions → Repository permissions → Contents</b>, escolha <b>Read and write</b>.</li>
+        <li>Clique em <b>Generate token</b>, copie o código e cole aqui embaixo.</li>
+      </ol>
+
+      <form id="connectForm" class="field" novalidate>
+        <label class="field-label" for="tokenInput">Token</label>
+        <input id="tokenInput" type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_…" />
+        <p class="form-error" id="connectError" role="alert" hidden></p>
+        <small class="field-hint">O token fica guardado só neste navegador e só vai para o GitHub. Dá para revogar quando quiser nas configurações da sua conta.</small>
+        <div class="modal-actions">
+          <button type="button" class="ghost-btn" id="disconnectBtn" hidden>Desconectar</button>
+          <button type="submit" class="primary-btn" id="connectBtn">Conectar</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="vendor/chart.umd.min.js"></script>
+  <script src="store.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
